@@ -1,0 +1,17 @@
+{application, discordant,
+ [{description, "An OTP application for discord bots"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {discordant_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    cowboy,
+    gun
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
