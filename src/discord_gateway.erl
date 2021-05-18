@@ -7,7 +7,7 @@
 -export([await_connect/3, await_hello/3, await_dispatch/3, connected/3,
          await_ack/3, disconnected/3, await_reconnect/3, await_close/3]).
 
--define(LIBRARY_NAME, <<"tataru">>).
+-define(LIBRARY_NAME, <<"discordant">>).
 
 -record(connection, {pid :: pid(),
                      stream_ref :: reference(),
@@ -219,11 +219,11 @@ handle_ws_message_(0, M=#{<<"t">> := <<"GUILD_CREATE">>, <<"d">> := Msg}, S0) ->
     update_session_id(M, S1);
 handle_ws_message_(0, M=#{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
                           <<"d">> := Msg}, S0) ->
-    PluginServer = tataru_sup:get_plugin_server(),
+    Router = discordant_sup:get_router(),
     #{<<"user_id">> := UserId} = Msg,
     if UserId =:= S0#state.user_id -> ok;
        true ->
-           plugin_server:broadcast_react(PluginServer, Msg)
+           discord_router:route_react(Router, Msg)
     end,
     update_session_id(M, S0);
 handle_ws_message_(0, M=#{<<"d">> := Msg}, S0) ->
@@ -303,8 +303,8 @@ handle_mentions(#{<<"author">> := #{<<"id">> := UID}}, #state{user_id=UID}) ->
 handle_mentions(Msg=#{<<"mentions">> := Mentions}, #state{user_id=UID}) ->
     Me = lists:filter(fun(#{<<"id">> := ID}) -> ID =:= UID end, Mentions),
     if length(Me) > 0 ->
-           PluginServer = tataru_sup:get_plugin_server(),
-           plugin_server:broadcast(PluginServer, Msg);
+           Router = discordant_sup:get_router(),
+           discord_router:route_msg(Router, Msg);
        true -> ok
     end;
 handle_mentions(_Msg, _State) ->
