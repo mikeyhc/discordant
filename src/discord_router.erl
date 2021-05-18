@@ -3,12 +3,15 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% public API
--export([set_routes/3, route_msg/2, route_react/2]).
+-export([start_link/0, set_routes/3, route_msg/2, route_react/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
 
 %% public api
+
+start_link() ->
+    gen_server:start_link(?MODULE, [], []).
 
 set_routes(Pid, Msg, React) ->
     gen_server:call(Pid, {set_routes, #{msg => Msg, react => React}}).
