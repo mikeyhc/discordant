@@ -2,24 +2,27 @@
 -behaviour(gen_server).
 -include_lib("kernel/include/logger.hrl").
 
--export([start_link/2, get_gateway/1, send_message/3, send_message_reply/3,
+-export([start_link/0, get_gateway/1, send_message/3, send_message_reply/3,
          send_reaction/4, get_guild/2, get_roles/2, create_role/3,
-         get_message/3, get_user/2, add_member_role/4, delete_role/3]).
+         get_message/3, get_user/2, add_member_role/4, delete_role/3,
+         connect/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
+
+-define(DISCORD_HOST, "discord.com").
 
 -record(connection, {pid :: pid(),
                      ref :: reference()
                     }).
--record(state, {url :: string(),
-                token :: string(),
+-record(state, {url :: string() | undefined,
+                token :: string() | undefined,
                 connection :: #connection{} | undefined
                }).
 
 %% API functions
 
--spec start_link(string(), string()) -> any().
-start_link(Url, Token) ->
-    gen_server:start_link(?MODULE, [Url, Token], []).
+-spec start_link() -> any().
+start_link() ->
+    gen_server:start_link(?MODULE, [], []).
 
 -spec get_gateway(pid()) -> binary().
 get_gateway(Pid) ->
@@ -66,11 +69,14 @@ add_member_role(Pid, GuildId, UserId, RoleId) ->
 delete_role(Pid, GuildId, RoleId) ->
     gen_server:cast(Pid, {delete_role, GuildId, RoleId}).
 
+-spec connect(pid(), string()) -> ok.
+connect(Pid, Token) ->
+    gen_server:cast(Pid, {connect, Token}).
+
 %% gen_server callbacks
 
-init([Url, Token]) ->
-    gen_server:cast(self(), connect),
-    {ok, #state{url=Url, token=Token}}.
+init([]) ->
+    {ok, #state{}}.
 
 handle_call(get_gateway, _From, State) ->
     #{<<"url">> := Url} = hget("/api/gateway/bot", State),
@@ -97,12 +103,12 @@ handle_call({get_user, UserId}, _From, State) ->
     R = hget(<<"/api/users/", UserId/binary>>, State),
     {reply, R, State}.
 
-handle_cast(connect, S=#state{url=Url}) ->
-    {ok, ConnPid} = gun:open(Url, 443),
+handle_cast({connect, Token}, S) ->
+    {ok, ConnPid} = gun:open(?DISCORD_HOST, 443),
     {ok, _Protocol} = gun:await_up(ConnPid),
     MRef = monitor(process, ConnPid),
     Conn = #connection{pid=ConnPid, ref=MRef},
-    {noreply, S#state{connection=Conn}};
+    {noreply, S#state{url=?DISCORD_HOST, token=Token, connection=Conn}};
 handle_cast({send_message, ChannelId, Message}, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
     {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, S0),

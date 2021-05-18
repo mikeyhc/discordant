@@ -2,7 +2,7 @@
 -behaviour(gen_statem).
 -include_lib("kernel/include/logger.hrl").
 
--export([start_link/1, heartbeat/1, guild_id/1, user_id/1]).
+-export([start_link/0, heartbeat/1, guild_id/1, user_id/1, connect/2]).
 -export([callback_mode/0, init/1]).
 -export([await_connect/3, await_hello/3, await_dispatch/3, connected/3,
          await_ack/3, disconnected/3, await_reconnect/3, await_close/3]).
@@ -14,7 +14,7 @@
                      ref :: reference()
                     }).
 -record(state, {url :: string() | undefined,
-                token :: string(),
+                token :: string() | undefined,
                 connection :: #connection{} | undefined,
                 heartbeat :: discord_heartbeat:ref() | undefined,
                 user_id :: binary() | undefined,
@@ -26,9 +26,13 @@
 
 %% API functions
 
--spec start_link(string()) -> any().
-start_link(Token) ->
-    gen_statem:start_link(?MODULE, [Token], []).
+-spec start_link() -> any().
+start_link() ->
+    gen_statem:start_link(?MODULE, [], []).
+
+-spec connect(pid(), string()) -> any().
+connect(Pid, Token) ->
+    gen_statem:cast(Pid, {connect, Token}).
 
 -spec heartbeat(pid()) -> ok.
 heartbeat(Pid) ->
@@ -45,17 +49,16 @@ user_id(Pid) ->
 
 %% gen_statem callbacks
 
-init([Token]) ->
-    gen_statem:cast(self(), connect),
-    {ok, await_connect, #state{token=Token}}.
+init([]) ->
+    {ok, await_connect, #state{}}.
 
 callback_mode() ->
     state_functions.
 
 %% state callbacks
 
-await_connect(cast, connect, State) ->
-    connect(await_hello, State).
+await_connect(cast, {connect, Token}, State) ->
+    connect_(await_hello, State#state{token=Token}).
 
 await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
@@ -168,7 +171,7 @@ await_ack(cast, heartbeat, State=#state{connection=Conn}) ->
 
 disconnected(cast, reconnect, State) ->
     ?LOG_INFO("disconnected"),
-    connect(await_reconnect, State);
+    connect_(await_reconnect, State);
 disconnected(_, _, State) ->
     {keep_state, State, [postpone]}.
 
@@ -270,7 +273,7 @@ disconnect(#connection{pid=ConnPid, stream_ref=StreamRef, ref=MRef},
     demonitor(MRef),
     ok = gun:shutdown(ConnPid).
 
-connect(Next, State) ->
+connect_(Next, State) ->
     ApiServer = discordant_sup:get_api_server(),
     BinGateway = discord_api:get_gateway(ApiServer),
     "wss://" ++ Gateway = binary:bin_to_list(BinGateway),
