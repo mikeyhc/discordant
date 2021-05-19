@@ -5,7 +5,7 @@
 -export([start_link/0, get_gateway/1, send_message/3, send_message_reply/3,
          send_reaction/4, get_guild/2, get_roles/2, create_role/3,
          get_message/3, get_user/2, add_member_role/4, delete_role/3,
-         connect/2]).
+         get_guild_members/2, connect/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(DISCORD_HOST, "discord.com").
@@ -73,6 +73,10 @@ delete_role(Pid, GuildId, RoleId) ->
 connect(Pid, Token) ->
     gen_server:cast(Pid, {connect, Token}).
 
+-spec get_guild_members(pid(), binary()) -> [#{binary() => any()}].
+get_guild_members(Pid, GuildId) ->
+    gen_server:call(Pid, {get_guild_members, GuildId}).
+
 %% gen_server callbacks
 
 init([]) ->
@@ -101,6 +105,10 @@ handle_call({get_message, ChannelId, MessageId}, _From, State) ->
 handle_call({get_user, UserId}, _From, State) ->
     ?LOG_INFO("requesting user ~s", [UserId]),
     R = hget(<<"/api/users/", UserId/binary>>, State),
+    {reply, R, State};
+handle_call({get_guild_members, GuildId}, _From, State) ->
+    ?LOG_INFO("requesting guild member list for ~s", [GuildId]),
+    R = hget(<<"/api/guilds/", GuildId/binary, "/members">>, State),
     {reply, R, State}.
 
 handle_cast({connect, Token}, S) ->
