@@ -30,11 +30,11 @@ init([]) ->
 handle_call({set_routes, Routes}, _From, _State) ->
     {reply, ok, Routes}.
 
-handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#{msg := Msg}) ->
+handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#{msg := Routes}) ->
     case binary:split(Content, <<" ">>, [global, trim_all]) of
         [_, Cmd|Rest] ->
             ?LOG_INFO("looking up ~p", [Cmd]),
-            case maps:get(Cmd, Msg, undefined) of
+            case maps:get(Cmd, Routes, undefined) of
                 undefined -> ok;
                 #{call := {M, F, A}} ->
                     ApiPid = discordant_sup:get_api_server(),
