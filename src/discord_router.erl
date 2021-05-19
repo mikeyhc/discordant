@@ -28,7 +28,7 @@ init([]) ->
     {ok, #{msg => #{}, react => []}}.
 
 handle_call({set_routes, Routes}, _From, _State) ->
-    {noreply, Routes}.
+    {reply, ok, Routes}.
 
 handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#{msg := Msg}) ->
     case binary:split(Content, <<" ">>, [global, trim_all]) of
