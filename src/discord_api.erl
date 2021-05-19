@@ -108,7 +108,7 @@ handle_call({get_user, UserId}, _From, State) ->
     {reply, R, State};
 handle_call({get_guild_members, GuildId}, _From, State) ->
     ?LOG_INFO("requesting guild member list for ~s", [GuildId]),
-    R = hget(<<"/api/guilds/", GuildId/binary, "/members">>, State),
+    R = hget(<<"/api/guilds/", GuildId/binary, "/members?limit=100">>, State),
     {reply, R, State}.
 
 handle_cast({connect, Token}, S) ->
