@@ -36,10 +36,19 @@ handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#{msg := Msg}) ->
             ?LOG_INFO("looking up ~p", [Cmd]),
             case maps:get(Cmd, Msg, undefined) of
                 undefined -> ok;
-                {M, F, A} -> M:F(A ++ [Rest, Msg])
+                #{call := {M, F, A}} ->
+                    ApiPid = discordant_sup:get_api_server(),
+                    handle_response(M:F(A ++ [Rest, ApiPid, Msg]), Msg)
             end
     end,
     {noreply, State};
 handle_cast({react, React}, State=#{react := Routes}) ->
     lists:foreach(fun({M, F, A}) -> M:F(A ++ [React]) end, Routes),
     {noreply, State}.
+
+%% internal functions
+
+handle_response({reply, Reply, _Args}, Msg) ->
+    ApiPid = discordant_sup:get_api_server(),
+    #{<<"channel_id">> := ChannelId} = Msg,
+    discord_api:send_message(ApiPid, ChannelId, Reply).
