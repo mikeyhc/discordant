@@ -38,7 +38,7 @@ handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#{msg := Routes}) ->
                 undefined -> ok;
                 #{call := {M, F, A}} ->
                     ApiPid = discordant_sup:get_api_server(),
-                    handle_response(M:F(A ++ [Rest, ApiPid, Msg]), Msg)
+                    handle_response(apply(M, F, A ++ [Rest, ApiPid, Msg]), Msg)
             end
     end,
     {noreply, State};
