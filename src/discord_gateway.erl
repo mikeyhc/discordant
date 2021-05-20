@@ -53,7 +53,9 @@ callback_mode() ->
 %% state callbacks
 
 await_connect(cast, {connect, Token}, State) ->
-    connect_(await_hello, State#state{token=Token}).
+    connect_(await_hello, State#state{token=Token});
+await_connect(cast, _Msg, State) ->
+    {keep_state, State, [postpone]}.
 
 await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
