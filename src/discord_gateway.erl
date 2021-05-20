@@ -2,7 +2,7 @@
 -behaviour(gen_statem).
 -include_lib("kernel/include/logger.hrl").
 
--export([start_link/0, heartbeat/1, guild_id/1, user_id/1, connect/2]).
+-export([start_link/0, heartbeat/1, user_id/1, connect/2]).
 -export([callback_mode/0, init/1]).
 -export([await_connect/3, await_hello/3, await_dispatch/3, connected/3,
          await_ack/3, disconnected/3, await_reconnect/3, await_close/3]).
@@ -18,7 +18,6 @@
                 connection :: #connection{} | undefined,
                 heartbeat :: discord_heartbeat:ref() | undefined,
                 user_id :: binary() | undefined,
-                guild_id :: binary() | undefined,
                 sequence :: integer() | null | undefined,
                 session_id :: binary() | undefined,
                 log :: file:io_device() | undefined
@@ -38,10 +37,6 @@ connect(Pid, Token) ->
 heartbeat(Pid) ->
     gen_statem:cast(Pid, heartbeat),
     ok.
-
--spec guild_id(pid()) -> {ok, binary()}.
-guild_id(Pid) ->
-    gen_statem:call(Pid, guild_id).
 
 -spec user_id(pid()) -> {ok, binary()}.
 user_id(Pid) ->
@@ -110,8 +105,6 @@ connected(cast, heartbeat,
     ?LOG_INFO("sending heartbeat"),
     send_message(Connection, 1, Seq),
     {next_state, await_ack, S};
-connected({call, From}, guild_id, State=#state{guild_id=GuildId}) ->
-    {keep_state, State, [{reply, From, {ok, GuildId}}]};
 connected({call, From}, user_id, State=#state{user_id=UserId}) ->
     {keep_state, State, [{reply, From, {ok, UserId}}]};
 connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
@@ -215,11 +208,6 @@ update_session_id(Msg, S0) ->
         SessionId -> S0#state{session_id=SessionId}
     end.
 
-handle_ws_message_(0, M=#{<<"t">> := <<"GUILD_CREATE">>, <<"d">> := Msg}, S0) ->
-    #{<<"id">> := GuildId} = Msg,
-    ?LOG_INFO("setting guild_id to ~p", [GuildId]),
-    S1 = S0#state{guild_id = GuildId},
-    update_session_id(M, S1);
 handle_ws_message_(0, M=#{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
                           <<"d">> := Msg}, S0) ->
     Router = discordant_sup:get_router(),
