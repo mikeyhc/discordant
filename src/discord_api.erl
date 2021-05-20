@@ -5,7 +5,7 @@
 -export([start_link/0, get_gateway/1, send_message/3, send_message_reply/3,
          send_reaction/4, get_guild/2, get_roles/2, create_role/3,
          get_message/3, get_user/2, add_member_role/4, delete_role/3,
-         get_guild_members/2, connect/2]).
+         get_guild_members/2, connect/2, remove_member_role/4]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(DISCORD_HOST, "discord.com").
@@ -64,6 +64,10 @@ get_user(Pid, UserId) ->
 -spec add_member_role(pid(), binary(), binary(), binary()) -> ok.
 add_member_role(Pid, GuildId, UserId, RoleId) ->
     gen_server:cast(Pid, {add_member_role, GuildId, UserId, RoleId}).
+
+-spec remove_member_role(pid(), binary(), binary(), binary()) -> ok.
+remove_member_role(Pid, GuildId, UserId, RoleId) ->
+    gen_server:cast(Pid, {remove_member_role, GuildId, UserId, RoleId}).
 
 -spec delete_role(pid(), binary(), binary()) -> ok.
 delete_role(Pid, GuildId, RoleId) ->
@@ -136,6 +140,10 @@ handle_cast({create_role, GuildId, RoleName}, State) ->
 handle_cast({add_member_role, GuildId, UserId, RoleId}, State) ->
     hput(<<"/api/guilds/", GuildId/binary, "/members/", UserId/binary,
            "/roles/", RoleId/binary>>, State),
+    {noreply, State};
+handle_cast({remove_member_role, GuildId, UserId, RoleId}, State) ->
+    hdelete(<<"/api/guilds/", GuildId/binary, "/members/", UserId/binary,
+              "/roles/", RoleId/binary>>, State),
     {noreply, State};
 handle_cast({delete_role, GuildId, RoleId}, State) ->
     ?LOG_INFO("deleting role ~s#~s~n", [GuildId, RoleId]),
