@@ -8,6 +8,7 @@
          await_ack/3, disconnected/3, await_reconnect/3, await_close/3]).
 
 -define(LIBRARY_NAME, <<"discordant">>).
+-define(RECONNECT_SLEEP, 5000).
 
 -record(connection, {pid :: pid(),
                      stream_ref :: reference(),
@@ -88,6 +89,7 @@ await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             demonitor(S#state.connection#connection.ref),
             gun:shutdown(ConnPid),
             discord_heartbeat:remove_heartbeat(S#state.heartbeat),
+            ok = timer:sleep(?RECONNECT_SLEEP),
             gen_statem:cast(self(), connect),
             {next_state, await_close, #state{token=S#state.token}}
     end;
