@@ -203,25 +203,28 @@ decode_msg(Msg, #state{log=Log}) ->
     ok = file:write(Log, [Msg, "\n"]),
     Json.
 
-handle_ws_message(Msg=#{<<"op">> := Op, <<"s">> := Seq}, State) ->
-    handle_ws_message_(Op, Msg, State#state{sequence=Seq}).
+handle_ws_message(Msg=#{<<"op">> := Op}, S0) ->
+    S1 = handle_ws_message_(Op, Msg, S0),
+    update_session_id(Msg, S1).
+
 
 update_session_id(Msg, S0) ->
     case maps:get(<<"session_id">>, Msg, undefined) of
         undefined -> S0;
+        null -> S0;
         SessionId -> S0#state{session_id=SessionId}
     end.
 
-handle_ws_message_(0, M=#{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
-                          <<"d">> := Msg}, S0) ->
+handle_ws_message_(0, #{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
+                        <<"d">> := Msg}, S0) ->
     Router = discordant_sup:get_router(),
     #{<<"user_id">> := UserId} = Msg,
     if UserId =:= S0#state.user_id -> ok;
        true ->
            discord_router:route_react(Router, Msg)
     end,
-    update_session_id(M, S0);
-handle_ws_message_(0, M=#{<<"d">> := Msg}, S0) ->
+    S0;
+handle_ws_message_(0, #{<<"d">> := Msg}, S0) ->
     % TODO compare session ids
     % TODO ensure we only use a single session ID
     S1 = if S0#state.user_id =:= undefined ->
@@ -235,7 +238,7 @@ handle_ws_message_(0, M=#{<<"d">> := Msg}, S0) ->
        true -> S0
     end,
     handle_mentions(Msg, S1),
-    update_session_id(M, S1);
+    S1;
 handle_ws_message_(7, _Msg, State) ->
     disconnect(State#state.connection, 1001, <<"reconnect">>),
     discord_heartbeat:remove_heartbeat(State#state.heartbeat),
