@@ -90,7 +90,7 @@ await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             gun:shutdown(ConnPid),
             discord_heartbeat:remove_heartbeat(S#state.heartbeat),
             ok = timer:sleep(?RECONNECT_SLEEP),
-            gen_statem:cast(self(), connect),
+            gen_statem:cast(self(), {connect, S#state.token}),
             {next_state, await_close, #state{token=S#state.token}}
     end;
 await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, _Msg}}, S) ->
