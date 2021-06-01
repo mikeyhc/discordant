@@ -75,7 +75,9 @@ await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             {next_state, await_dispatch, handle_ws_message(Json, S)};
         true ->
             {stop, msg_before_hello, S}
-    end.
+    end;
+await_hello(_, _, State) ->
+    {keep_state, State, [postpone]}.
 
 await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
                S=#state{connection=#connection{pid=ConnPid}}) ->
@@ -88,6 +90,7 @@ await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             ?LOG_INFO("session invalidated, doing full reconnect"),
             demonitor(S#state.connection#connection.ref),
             gun:shutdown(ConnPid),
+            ?LOG_INFO("removing heartbeat"),
             discord_heartbeat:remove_heartbeat(S#state.heartbeat),
             ok = timer:sleep(?RECONNECT_SLEEP),
             gen_statem:cast(self(), {connect, S#state.token}),
