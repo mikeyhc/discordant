@@ -18,7 +18,7 @@ get_router() -> find_child(discord_router).
 %% supervisor callbacks
 
 init([]) ->
-    SupFlags = #{strategy => rest_for_one,
+    SupFlags = #{strategy => one_for_one,
                  intensity => 3,
                  period => 60},
     ChildSpecs = [#{id => discord_router,
