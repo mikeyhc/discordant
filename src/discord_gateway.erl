@@ -56,7 +56,10 @@ callback_mode() ->
 await_connect(cast, {connect, Token}, State) ->
     connect_(await_hello, State#state{token=Token});
 await_connect(cast, _Msg, State) ->
-    {keep_state, State, [postpone]}.
+    {keep_state, State, [postpone]};
+await_connect(info, {gun_ws, ConnPid, _StreamRef, _Msg}, State) ->
+    ?LOG_INFO("dropping message for likely stale connection ~p", [ConnPid]),
+    {keep_state, State}.
 
 await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
