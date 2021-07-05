@@ -111,8 +111,8 @@ await_close(_, _, State) ->
     {keep_state, State, [postpone]}.
 
 connected(cast, heartbeat,
-          S=#state{connection=Connection, sequence=Seq}) ->
-    ?LOG_INFO("sending heartbeat"),
+          S=#state{connection=Connection, sequence=Seq, session_id=Sid}) ->
+    ?LOG_INFO("sending heartbeat for session ~p", Sid),
     send_message(Connection, 1, Seq),
     {next_state, await_ack, S};
 connected({call, From}, user_id, State=#state{user_id=UserId}) ->
@@ -218,7 +218,9 @@ update_session_id(Msg, S0) ->
     case maps:get(<<"session_id">>, Msg, undefined) of
         undefined -> S0;
         null -> S0;
-        SessionId -> S0#state{session_id=SessionId}
+        SessionId ->
+            ?LOG_INFO("session id set to ~p", [SessionId]),
+            S0#state{session_id=SessionId}
     end.
 
 handle_ws_message_(0, #{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
