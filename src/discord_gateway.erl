@@ -112,7 +112,7 @@ await_close(_, _, State) ->
 
 connected(cast, heartbeat,
           S=#state{connection=Connection, sequence=Seq, session_id=Sid}) ->
-    ?LOG_INFO("sending heartbeat for session ~p", Sid),
+    ?LOG_INFO("sending heartbeat for session ~p", [Sid]),
     send_message(Connection, 1, Seq),
     {next_state, await_ack, S};
 connected({call, From}, user_id, State=#state{user_id=UserId}) ->
