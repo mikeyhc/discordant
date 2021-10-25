@@ -3,12 +3,11 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([start_link/0, heartbeat/1, user_id/1, connect/2]).
--export([callback_mode/0, init/1]).
+-export([callback_mode/0, init/1, terminate/3]).
 -export([await_connect/3, await_hello/3, await_dispatch/3, connected/3,
-         await_ack/3, disconnected/3, await_reconnect/3, await_close/3]).
+         await_ack/3]).
 
 -define(LIBRARY_NAME, <<"discordant">>).
--define(RECONNECT_SLEEP, 5000).
 
 -record(connection, {pid :: pid(),
                      stream_ref :: reference(),
@@ -51,26 +50,28 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
+terminate(disconnected, State, _Data) ->
+   disconnect(State#state.connection, 1001, <<"reconnect">>),
+   ?LOG_INFO("removing heartbeat"),
+   discord_heartbeat:remove_heartbeat(State#state.heartbeat).
+
 %% state callbacks
 
 await_connect(cast, {connect, Token}, State) ->
-    connect_(await_hello, State#state{token=Token});
+connect_(await_hello, State#state{token=Token});
 await_connect(cast, _Msg, State) ->
-    {keep_state, State, [postpone]};
-await_connect(info, {gun_ws, ConnPid, _StreamRef, _Msg}, State) ->
-    ?LOG_INFO("dropping message for likely stale connection ~p", [ConnPid]),
-    {keep_state, State}.
+{keep_state, State, [postpone]}.
 
 await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
-            S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
-    Json = decode_msg(Msg, S),
-    case Json of
-        #{<<"op">> := 10} ->
-            ?LOG_INFO("sending identify"),
-            send_message(S#state.connection, 2,
-                         #{<<"token">> => Token,
-                           <<"properties">> => #{
-                               <<"$os">> => <<"beam">>,
+        S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
+Json = decode_msg(Msg, S),
+case Json of
+    #{<<"op">> := 10} ->
+        ?LOG_INFO("sending identify"),
+        send_message(S#state.connection, 2,
+                     #{<<"token">> => Token,
+                       <<"properties">> => #{
+                           <<"$os">> => <<"beam">>,
                                <<"$browser">> => ?LIBRARY_NAME,
                                <<"$device">> => ?LIBRARY_NAME
                               }
@@ -90,25 +91,11 @@ await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             ?LOG_INFO("connected to discord"),
             {next_state, connected, handle_ws_message(Json, S)};
         #{<<"op">> := 9} ->
-            ?LOG_INFO("session invalidated, doing full reconnect"),
-            demonitor(S#state.connection#connection.ref),
-            gun:shutdown(ConnPid),
-            ?LOG_INFO("removing heartbeat"),
-            discord_heartbeat:remove_heartbeat(S#state.heartbeat),
-            ok = timer:sleep(?RECONNECT_SLEEP),
-            gen_statem:cast(self(), {connect, S#state.token}),
-            {next_state, await_close, #state{token=S#state.token}}
+            ?LOG_INFO("session invalidated, disconnecting"),
+            {stop, disconnected}
     end;
-await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, _Msg}}, S) ->
-    ?LOG_INFO("dropping message for likely stale connection ~p", [ConnPid]),
-    {keep_state, S};
 await_dispatch(_, _, S) ->
     {keep_state, S, [postpone]}.
-
-await_close(info, {gun_ws, _ConnPid, _StreamRef, {close, _, _}}, State) ->
-    {next_state, await_connect, State};
-await_close(_, _, State) ->
-    {keep_state, State, [postpone]}.
 
 connected(cast, heartbeat,
           S=#state{connection=Connection, sequence=Seq, session_id=Sid}) ->
@@ -124,34 +111,15 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
     ok = file:write(Log, [Msg, "\n"]),
     case Json of
         #{<<"op">> := 7} ->
-            {next_state, disconnected, handle_ws_message(Json, S)};
+            {stop, disconnected, handle_ws_message(Json, S)};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
-connected(info, {gun_down, ConnPid, _, _, _},
-          S=#state{connection=#connection{pid=ConnPid}}) ->
+connected(info, {gun_down, _, _, _, _}, _State) ->
     ?LOG_INFO("gun connection lost"),
-    % TODO close connection and reconnect
-    gun:await_up(ConnPid),
-    ?LOG_INFO("gun connection regained"),
-    gun:ws_upgrade(ConnPid, "/"),
-    ?LOG_INFO("upgrading connection to websocket"),
-    receive
-        {gun_upgrade, ConnPid, _StreamRef, [<<"websocket">>], _Headers} ->
-            {keep_state, S};
-        {gun_response, ConnPid, _StreamRef, _Fin, _Status, _Headers} ->
-            {stop, ws_upgrade_failed, S};
-        {gun_error, ConnPid, _StreamRef, Reason} ->
-            ?LOG_ERROR("gun error: ~p", [Reason]),
-            {stop, ws_upgrade_failed, S}
-    after 2000 -> {stop, timeout}
-    end;
-connected(info, {gun_ws, ConnPid, _, {close, _, _}},
-          S=#state{connection=#connection{pid=ConnPid}}) ->
+    {stop, disconnected};
+connected(info, {gun_ws, _, _, {close, _, _}}, _State) ->
     ?LOG_INFO("websocket closed"),
-    {next_state, disconnected, S#state{connection=undefined}};
-connected(info, {gun_ws, ConnPid, _, _}, S) ->
-    ?LOG_INFO("ignoring likely stale message for ~p", [ConnPid]),
-    {keep_state, S}.
+    {stop, disconnected}.
 
 await_ack(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
           S=#state{connection=#connection{pid=ConnPid}}) ->
@@ -161,45 +129,12 @@ await_ack(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             {next_state, connected, handle_ws_message(Json, S)};
         _ -> {keep_state, S, [postpone]}
     end;
-await_ack(info, {gun_ws, ConnPid, _, {close, _, _}},
-          S=#state{connection=#connection{pid=ConnPid}}) ->
+await_ack(info, {gun_ws, _, _, {close, _, _}}, _State) ->
     ?LOG_INFO("websocket closed"),
-    {next_state, disconnected, S#state{connection=undefined}};
-await_ack(cast, heartbeat, State=#state{connection=Conn}) ->
+    {stop, disconnected};
+await_ack(cast, heartbeat, _State) ->
     ?LOG_INFO("received heartbeat while awaiting ack, disconnecting"),
-    disconnect(Conn, 1001, <<"no heartbeat">>),
-    discord_heartbeat:remove_heartbeat(State#state.heartbeat),
-    gen_statem:cast(self(), reconnect),
-    {next_state, disconnected, State#state{connection=undefined}}.
-
-disconnected(cast, reconnect, State) ->
-    ?LOG_INFO("disconnected"),
-    connect_(await_reconnect, State);
-disconnected(_, _, State) ->
-    {keep_state, State, [postpone]}.
-
-await_reconnect(info, {gun_ws, _ConnPid, _StreamRef, {close, _, _}}, State) ->
-    {keep_state, State};
-await_reconnect(info, {gun_ws, ConnPid, StreamRef, {text, Msg}},
-                S=#state{connection=#connection{pid=ConnPid,
-                                                stream_ref=StreamRef},
-                         token=Token,
-                         session_id=SessionId,
-                         sequence=Seq}) ->
-    Json = decode_msg(Msg, S),
-    case Json of
-        #{<<"op">> := 10} ->
-            ?LOG_INFO("sending resume"),
-            send_message(S#state.connection, 6,
-                         #{<<"token">> => Token,
-                           <<"session_id">> => SessionId,
-                           <<"seq">> => Seq
-                          }),
-            {next_state, await_dispatch, handle_ws_message(Json, S)};
-        _ -> {stop, msg_before_hello, S}
-    end;
-await_reconnect(_, _, State) ->
-    {keep_state, State, [postpone]}.
+    {stop, disconnected}.
 
 %% helper functions
 
@@ -247,11 +182,6 @@ handle_ws_message_(0, #{<<"d">> := Msg}, S0) ->
     end,
     handle_mentions(Msg, S1),
     S1;
-handle_ws_message_(7, _Msg, State) ->
-    disconnect(State#state.connection, 1001, <<"reconnect">>),
-    discord_heartbeat:remove_heartbeat(State#state.heartbeat),
-    gen_statem:cast(self(), reconnect),
-    State#state{connection=undefined};
 handle_ws_message_(10, #{<<"d">> := #{<<"heartbeat_interval">> := IV}},
                    State) ->
     if State#state.heartbeat =:= undefined -> ok;
