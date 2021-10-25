@@ -51,27 +51,27 @@ callback_mode() ->
     state_functions.
 
 terminate(disconnected, State, _Data) ->
-   disconnect(State#state.connection, 1001, <<"reconnect">>),
-   ?LOG_INFO("removing heartbeat"),
-   discord_heartbeat:remove_heartbeat(State#state.heartbeat).
+    disconnect(State#state.connection, 1001, <<"reconnect">>),
+    ?LOG_INFO("removing heartbeat"),
+    discord_heartbeat:remove_heartbeat(State#state.heartbeat).
 
 %% state callbacks
 
 await_connect(cast, {connect, Token}, State) ->
-connect_(await_hello, State#state{token=Token});
+    connect_(await_hello, State#state{token=Token});
 await_connect(cast, _Msg, State) ->
-{keep_state, State, [postpone]}.
+    {keep_state, State, [postpone]}.
 
 await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
-        S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
-Json = decode_msg(Msg, S),
-case Json of
-    #{<<"op">> := 10} ->
-        ?LOG_INFO("sending identify"),
-        send_message(S#state.connection, 2,
-                     #{<<"token">> => Token,
-                       <<"properties">> => #{
-                           <<"$os">> => <<"beam">>,
+            S=#state{connection=#connection{pid=ConnPid}, token=Token}) ->
+    Json = decode_msg(Msg, S),
+    case Json of
+        #{<<"op">> := 10} ->
+            ?LOG_INFO("sending identify"),
+            send_message(S#state.connection, 2,
+                         #{<<"token">> => Token,
+                           <<"properties">> => #{
+                               <<"$os">> => <<"beam">>,
                                <<"$browser">> => ?LIBRARY_NAME,
                                <<"$device">> => ?LIBRARY_NAME
                               }
@@ -144,11 +144,11 @@ decode_msg(Msg, #state{log=Log}) ->
     ok = file:write(Log, [Msg, "\n"]),
     Json.
 
-handle_ws_message(Msg=#{<<"op">> := Op}, S0) ->
+handle_ws_message(Msg=#{<<"op">> := Op, <<"d">> := Data}, S0) ->
     S1 = handle_ws_message_(Op, Msg, S0),
-    update_session_id(Msg, S1).
+    update_session_id(Data, S1).
 
-
+update_session_id(null, S0) -> S0;
 update_session_id(Msg, S0) ->
     case maps:get(<<"session_id">>, Msg, undefined) of
         undefined -> S0;
@@ -171,15 +171,15 @@ handle_ws_message_(0, #{<<"d">> := Msg}, S0) ->
     % TODO compare session ids
     % TODO ensure we only use a single session ID
     S1 = if S0#state.user_id =:= undefined ->
-           case maps:get(<<"user">>, Msg, undefined) of
-               undefined -> S0;
-               User ->
-                   SX = S0#state{user_id=maps:get(<<"id">>, User)},
-                   ?LOG_INFO("set user id to ~p", [SX#state.user_id]),
-                   SX
-           end;
-       true -> S0
-    end,
+                case maps:get(<<"user">>, Msg, undefined) of
+                    undefined -> S0;
+                    User ->
+                        SX = S0#state{user_id=maps:get(<<"id">>, User)},
+                        ?LOG_INFO("set user id to ~p", [SX#state.user_id]),
+                        SX
+                end;
+            true -> S0
+         end,
     handle_mentions(Msg, S1),
     S1;
 handle_ws_message_(10, #{<<"d">> := #{<<"heartbeat_interval">> := IV}},
