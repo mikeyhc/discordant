@@ -39,6 +39,7 @@ route_raw(Pid, Msg) ->
 init([]) ->
     {ok, #state{}}.
 
+% TODO cache these values
 handle_call({set_routes, Msg, React}, _From, State) ->
     {reply, ok, State#state{msg=Msg, react=React}};
 handle_call({set_hooks, Hooks}, _From, State) ->
