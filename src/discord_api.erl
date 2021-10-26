@@ -228,9 +228,7 @@ hdelete(Uri, #state{connection=Connection, token=Token}) ->
 
 send_message_(ChannelId, Message, Embeds, State) ->
     Body = post("/api/channels/" ++ ChannelId ++ "/messages",
-                #{<<"content">> => Message,
-                  <<"embeds">> => Embeds,
-                  <<"allowed_metions">> => [<<"users">>, <<"roles">>]},
+                build_message(Message, Embeds),
                 State),
     {State, Body}.
 
@@ -239,3 +237,14 @@ send_reaction_(ChannelId, MessageId, Reaction, State) ->
                                  "/messages/", MessageId/binary, "/reactions/",
                                  Reaction/binary, "/@me">>),
     {State, hput(URI, State)}.
+
+build_message(Content, undefined) ->
+    #{<<"content">> => Content,
+      <<"allowed_metions">> => [<<"users">>, <<"roles">>]};
+build_message(undefined, Embeds) ->
+    #{<<"embeds">> => Embeds,
+      <<"allowed_metions">> => [<<"users">>, <<"roles">>]};
+build_message(Content, Embeds) ->
+    #{<<"content">> => Content,
+      <<"embeds">> => Embeds,
+      <<"allowed_metions">> => [<<"users">>, <<"roles">>]}.
