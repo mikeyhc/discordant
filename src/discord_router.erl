@@ -60,7 +60,7 @@ handle_cast({react, React}, State=#state{react=Routes}) ->
     lists:foreach(fun({M, F, A}) -> M:F(A ++ [React]) end, Routes),
     {noreply, State};
 handle_cast({raw, Msg}, State=#state{hooks=Routes}) ->
-    case maps:get(Msg, <<"t">>) of
+    case maps:get(<<"t">>, Msg) of
         null -> ok;
         Cmd ->
             case maps:get(Cmd, Routes, undefined) of
