@@ -96,10 +96,9 @@ init([]) ->
 handle_call(get_gateway, _From, State) ->
     #{<<"url">> := Url} = hget("/api/gateway/bot", State),
     {reply, Url, State};
-handle_call({send_message, ChannelId, Message, Embeds}, _From, S0) ->
+handle_call({send_message, ChannelId, Message}, _From, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
-    {S1, R} = send_message_(binary:bin_to_list(ChannelId), Message,
-                            Embeds, S0),
+    {S1, R} = send_message_(binary:bin_to_list(ChannelId), Message, [], S0),
     {reply, {ok, R}, S1};
 handle_call({get_guild, GuildId}, _From, State) ->
     ?LOG_INFO("requesting info for guild ~s", [GuildId]),
@@ -129,9 +128,9 @@ handle_cast({connect, Token}, S) ->
     MRef = monitor(process, ConnPid),
     Conn = #connection{pid=ConnPid, ref=MRef},
     {noreply, S#state{url=?DISCORD_HOST, token=Token, connection=Conn}};
-handle_cast({send_message, ChannelId, Message}, S0) ->
+handle_cast({send_message, ChannelId, Message, Embeds}, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
-    {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, [], S0),
+    {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, Embeds, S0),
     {noreply, S1};
 handle_cast({send_reaction, ChannelId, MessageId, Reaction}, S0) ->
     ?LOG_INFO("sending reaction to ~s#~s: ~s",
