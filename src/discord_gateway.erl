@@ -54,7 +54,10 @@ terminate(disconnected, State, _Data) ->
     ?LOG_INFO("state is currently ~p", [State]),
     disconnect(State#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(State#state.heartbeat).
+    discord_heartbeat:remove_heartbeat(State#state.heartbeat);
+terminate(Status, State, Data) ->
+    ?LOG_INFO("abnormal termination ~p:~p:~p", [Status, State, Data]),
+    ok.
 
 %% state callbacks
 
