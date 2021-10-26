@@ -146,6 +146,8 @@ decode_msg(Msg, #state{log=Log}) ->
 
 handle_ws_message(Msg=#{<<"op">> := Op, <<"d">> := Data}, S0) ->
     S1 = handle_ws_message_(Op, Msg, S0),
+    Router = discordant_sup:get_router(),
+    discord_router:route_raw(Router, Msg),
     update_session_id(Data, S1).
 
 update_session_id(null, S0) -> S0;
