@@ -1,6 +1,6 @@
 -module(discordant).
 
--export([connect/1, connect/2, set_routes/2, set_hooks/1]).
+-export([connect/1, connect/2, set_routes/2, set_hooks/1, user_id/0]).
 
 -spec connect(string()) -> ok.
 connect(Token) ->
@@ -27,3 +27,7 @@ set_routes(Msg, React) ->
 set_hooks(Hooks) ->
     Pid = discordant_sup:get_router(),
     discord_router:set_hooks(Pid, Hooks).
+
+user_id() ->
+    Pid = discordant_sup:get_gateway(),
+    discord_gateway:user_id(Pid).
