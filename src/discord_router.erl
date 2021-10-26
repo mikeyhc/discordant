@@ -67,7 +67,7 @@ handle_cast({raw, Msg}, State=#state{hooks=Routes}) ->
                 undefined -> ok;
                 {M, F, A} ->
                     ApiPid = discordant_sup:get_api_server(),
-                    handle_response(apply(M, F, A ++ [ApiPid, Msg]), Msg)
+                    apply(M, F, A ++ [ApiPid, Msg])
             end
     end,
     {noreply, State}.
