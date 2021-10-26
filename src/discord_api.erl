@@ -2,10 +2,10 @@
 -behaviour(gen_server).
 -include_lib("kernel/include/logger.hrl").
 
--export([start_link/0, get_gateway/1, send_message/3, send_message_reply/3,
-         send_reaction/4, get_guild/2, get_roles/2, create_role/3,
-         get_message/3, get_user/2, add_member_role/4, delete_role/3,
-         get_guild_members/2, connect/2, remove_member_role/4]).
+-export([start_link/0, get_gateway/1, send_message/3, send_message/4,
+         send_message_reply/3, send_reaction/4, get_guild/2, get_roles/2,
+         create_role/3, get_message/3, get_user/2, add_member_role/4,
+         delete_role/3, get_guild_members/2, connect/2, remove_member_role/4]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(DISCORD_HOST, "discord.com").
@@ -17,6 +17,9 @@
                 token :: string() | undefined,
                 connection :: #connection{} | undefined
                }).
+
+-type embed() :: maps:map(binary(), image()).
+-type image() :: maps:map(binary(), binary()).
 
 %% API functions
 
@@ -30,7 +33,11 @@ get_gateway(Pid) ->
 
 -spec send_message(pid(), binary(), binary()) -> ok.
 send_message(Pid, ChannelId, Message) ->
-    gen_server:cast(Pid, {send_message, ChannelId, Message}).
+    send_message(Pid, ChannelId, Message, []).
+
+-spec send_message(pid(), binary(), binary(), [embed()]) -> ok.
+send_message(Pid, ChannelId, Message, Embeds) ->
+    gen_server:cast(Pid, {send_message, ChannelId, Message, Embeds}).
 
 -spec send_message_reply(pid(), binary(), binary()) ->
     {ok, #{binary() => any()}}.
@@ -89,9 +96,10 @@ init([]) ->
 handle_call(get_gateway, _From, State) ->
     #{<<"url">> := Url} = hget("/api/gateway/bot", State),
     {reply, Url, State};
-handle_call({send_message, ChannelId, Message}, _From, S0) ->
+handle_call({send_message, ChannelId, Message, Embeds}, _From, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
-    {S1, R} = send_message_(binary:bin_to_list(ChannelId), Message, S0),
+    {S1, R} = send_message_(binary:bin_to_list(ChannelId), Message,
+                            Embeds, S0),
     {reply, {ok, R}, S1};
 handle_call({get_guild, GuildId}, _From, State) ->
     ?LOG_INFO("requesting info for guild ~s", [GuildId]),
@@ -123,7 +131,7 @@ handle_cast({connect, Token}, S) ->
     {noreply, S#state{url=?DISCORD_HOST, token=Token, connection=Conn}};
 handle_cast({send_message, ChannelId, Message}, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
-    {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, S0),
+    {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, [], S0),
     {noreply, S1};
 handle_cast({send_reaction, ChannelId, MessageId, Reaction}, S0) ->
     ?LOG_INFO("sending reaction to ~s#~s: ~s",
@@ -219,9 +227,10 @@ hdelete(Uri, #state{connection=Connection, token=Token}) ->
         Data -> jsone:decode(Data)
     end.
 
-send_message_(ChannelId, Message, State) ->
+send_message_(ChannelId, Message, Embeds, State) ->
     Body = post("/api/channels/" ++ ChannelId ++ "/messages",
                 #{<<"content">> => Message,
+                  <<"embeds">> => Embeds,
                   <<"allowed_metions">> => [<<"users">>, <<"roles">>]},
                 State),
     {State, Body}.
