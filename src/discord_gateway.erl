@@ -51,6 +51,7 @@ callback_mode() ->
     state_functions.
 
 terminate(disconnected, State, _Data) ->
+    ?LOG_INFO("state is currently ~p", [State]),
     disconnect(State#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(State#state.heartbeat).
