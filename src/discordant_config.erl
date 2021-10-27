@@ -17,7 +17,7 @@ has_value(Key) ->
     gen_server:call(get_pid(), {has, Key}).
 
 init([]) ->
-    {ok, []}.
+    {ok, #{}}.
 
 handle_call({get, Key}, _From, State) ->
     R = case maps:is_key(Key, State) of
