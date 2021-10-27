@@ -1,7 +1,8 @@
 -module(discordant_sup).
 -behaviour(supervisor).
 
--export([start_link/0, get_api_server/0, get_gateway/0, get_router/0]).
+-export([start_link/0, get_api_server/0, get_gateway/0, get_router/0,
+         get_config/0]).
 -export([init/1]).
 
 %% API functions
@@ -15,13 +16,17 @@ get_gateway() -> find_child(discord_gateway).
 
 get_router() -> find_child(discord_router).
 
+get_config() -> find_child(discordant_config).
+
 %% supervisor callbacks
 
 init([]) ->
     SupFlags = #{strategy => rest_for_one,
                  intensity => 3,
                  period => 60},
-    ChildSpecs = [#{id => discord_router,
+    ChildSpecs = [#{id => discordant_config,
+                    start => {discordant_config, start_link, []}},
+                  #{id => discord_router,
                     start => {discord_router, start_link, []}},
                   #{id => discord_api,
                     start => {discord_api, start_link, []}},

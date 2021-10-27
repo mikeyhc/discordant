@@ -9,6 +9,7 @@ connect(Token) ->
 -spec connect(string(), [Options]) -> ok
     when Options :: monitor.
 connect(Token, Options) ->
+    discordant_config:set_value(discord_token, Token),
     ApiPid = discordant_sup:get_api_server(),
     discord_api:connect(ApiPid, Token),
     GatewayPid = discordant_sup:get_gateway(),

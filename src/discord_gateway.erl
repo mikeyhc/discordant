@@ -45,6 +45,10 @@ user_id(Pid) ->
 %% gen_statem callbacks
 
 init([]) ->
+    case discordant_config:get_value(discord_token) of
+        {ok, Token} -> connect(self(), Token);
+        not_found -> ok
+    end,
     {ok, await_connect, #state{}}.
 
 callback_mode() ->
