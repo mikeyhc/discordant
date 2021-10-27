@@ -46,7 +46,8 @@ user_id(Pid) ->
 
 init([]) ->
     case discordant_config:get_value(discord_token) of
-        {ok, Token} -> connect(self(), Token);
+        % {ok, Token} -> connect(self(), Token);
+        {ok, _Token} -> ok;
         not_found -> ok
     end,
     {ok, await_connect, #state{}}.
