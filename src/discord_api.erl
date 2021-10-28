@@ -91,6 +91,7 @@ get_guild_members(Pid, GuildId) ->
 %% gen_server callbacks
 
 init([]) ->
+    gen_server:cast(self(), reconnect),
     {ok, #state{}}.
 
 handle_call(get_gateway, _From, State) ->
@@ -128,6 +129,12 @@ handle_cast({connect, Token}, S) ->
     MRef = monitor(process, ConnPid),
     Conn = #connection{pid=ConnPid, ref=MRef},
     {noreply, S#state{url=?DISCORD_HOST, token=Token, connection=Conn}};
+handle_cast(reconnect, S) ->
+    case discordant_config:get_value(discord_token) of
+        {ok, Token} -> connect(self(), Token);
+        not_found -> ok
+    end,
+    {noreply, S};
 handle_cast({send_message, ChannelId, Message, Embeds}, S0) ->
     ?LOG_INFO("sending message to ~p: ~p", [ChannelId, Message]),
     {S1, _} = send_message_(binary:bin_to_list(ChannelId), Message, Embeds, S0),
