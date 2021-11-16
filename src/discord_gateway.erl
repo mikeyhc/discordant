@@ -51,18 +51,15 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
-terminate(reconnect, State, Data) ->
+terminate(reconnect, _State, Data) ->
     ?LOG_INFO("reconnect requested"),
-    ?LOG_INFO("state is currently ~p", [State]),
-    ?LOG_INFO("data is currently ~p", [Data]),
-    disconnect(State#state.connection, 1001, <<"reconnect">>),
+    disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(State#state.heartbeat);
-terminate(disconnected, State, _Data) ->
-    ?LOG_INFO("state is currently ~p", [State]),
-    disconnect(State#state.connection, 1001, <<"reconnect">>),
+    discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
+terminate(disconnected, _State, Data) ->
+    disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(State#state.heartbeat);
+    discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
 terminate(Status, State, Data) ->
     ?LOG_INFO("abnormal termination ~p:~p:~p", [Status, State, Data]),
     ok.
