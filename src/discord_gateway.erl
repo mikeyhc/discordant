@@ -53,6 +53,7 @@ callback_mode() ->
 
 terminate(reconnect, State, _Data) ->
     ?LOG_INFO("reconnect requested"),
+    ?LOG_INFO("state is currently ~p", [State]),
     disconnect(State#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(State#state.heartbeat);
