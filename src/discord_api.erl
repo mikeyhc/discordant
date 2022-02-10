@@ -165,6 +165,10 @@ handle_cast({delete_role, GuildId, RoleId}, State) ->
             State),
     {noreply, State}.
 
+handle_info({gun_up, ConnPid, _},
+            S=#state{connection=#connection{pid=ConnPid}}) ->
+    ?LOG_INFO("gun reupped"),
+    {noreply, S};
 handle_info({gun_down, ConnPid, _, _, _},
             S=#state{connection=#connection{pid=ConnPid}}) ->
     ?LOG_INFO("gun lost api connection"),
@@ -173,11 +177,11 @@ handle_info({gun_down, ConnPid, _, _, _},
     {noreply, S};
 handle_info({gun_error, ConnPid, _, Reason},
             S=#state{connection=#connection{pid=ConnPid}}) ->
-    ?LOG_ERROR("discord api error: ~p~n", [Reason]),
+    ?LOG_ERROR("discord api error: ~p", [Reason]),
     {stop, error, S};
 handle_info({'DOWN', MRef, process, ConnPid, Reason},
             S=#state{connection=#connection{pid=ConnPid, ref=MRef}}) ->
-    ?LOG_ERROR("discord api disconnected ~p~n", [Reason]),
+    ?LOG_ERROR("discord api disconnected ~p", [Reason]),
     {stop, disconnected, S}.
 
 %% helper functions
