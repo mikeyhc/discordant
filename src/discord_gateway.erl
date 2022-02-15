@@ -68,7 +68,9 @@ terminate(Status, State, Data) ->
 
 await_connect(cast, reconnect, State) ->
     case discordant_config:get_value(discord_token) of
-        {ok, Token} -> connect(self(), Token);
+        {ok, Token} ->
+            ?LOG_INFO("performing reconnect"),
+            connect(self(), Token);
         not_found -> ok
     end,
     {keep_state, State};
