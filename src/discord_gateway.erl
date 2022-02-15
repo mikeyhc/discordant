@@ -51,7 +51,7 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
-terminate(reconnect, _State, Data) ->
+terminate({shutdown, reconnect}, _State, Data) ->
     ?LOG_INFO("reconnect requested"),
     disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
@@ -127,7 +127,7 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
     ?LOG_DEBUG("message received: ~p", [Json]),
     ok = file:write(Log, [Msg, "\n"]),
     case Json of
-        #{<<"op">> := 7} -> {stop, reconnect, S};
+        #{<<"op">> := 7} -> {stop, {shutdown, reconnect}, S};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
 connected(info, {gun_down, _, _, _, _}, _State) ->
