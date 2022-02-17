@@ -130,12 +130,8 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
         #{<<"op">> := 7} -> {stop, {shutdown, reconnect}, S};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
-connected(info, {gun_down, _, _, _, _}, _State) ->
-    ?LOG_INFO("gun connection lost"),
-    {stop, disconnected};
-connected(info, {gun_ws, _, _, {close, _, _}}, _State) ->
-    ?LOG_INFO("websocket closed"),
-    {stop, disconnected}.
+connected(info, Msg, State) ->
+    handle_common(Msg, State).
 
 await_ack(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
           S=#state{connection=#connection{pid=ConnPid}}) ->
@@ -145,14 +141,20 @@ await_ack(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             {next_state, connected, handle_ws_message(Json, S)};
         _ -> {keep_state, S, [postpone]}
     end;
-await_ack(info, {gun_ws, _, _, {close, _, _}}, _State) ->
-    ?LOG_INFO("websocket closed"),
-    {stop, disconnected};
 await_ack(cast, heartbeat, _State) ->
     ?LOG_INFO("received heartbeat while awaiting ack, disconnecting"),
-    {stop, disconnected}.
+    {stop, disconnected};
+await_ack(info, Msg, State) ->
+    handle_common(Msg, State).
 
 %% helper functions
+
+handle_common({gun_down, _, _, _, _}, _State) ->
+    ?LOG_INFO("gun connection lost"),
+    {stop, {shutdown, disconnected}};
+handle_common({gun_ws, _, _, {close, _, _}}, _State) ->
+    ?LOG_INFO("websocket closed"),
+    {stop, {shutdown, disconnected}}.
 
 decode_msg(Msg, #state{log=Log}) ->
     Json = jsone:decode(Msg),
