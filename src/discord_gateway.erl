@@ -56,7 +56,7 @@ terminate({shutdown, reconnect}, _State, Data) ->
     disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
-terminate(disconnected, _State, Data) ->
+terminate({shutdown, disconnected}, _State, Data) ->
     disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
@@ -109,7 +109,7 @@ await_dispatch(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
             {next_state, connected, handle_ws_message(Json, S)};
         #{<<"op">> := 9} ->
             ?LOG_INFO("session invalidated, disconnecting"),
-            {stop, disconnected}
+            {stop, {shutdown, disconnected}}
     end;
 await_dispatch(_, _, S) ->
     {keep_state, S, [postpone]}.
@@ -143,7 +143,7 @@ await_ack(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
     end;
 await_ack(cast, heartbeat, _State) ->
     ?LOG_INFO("received heartbeat while awaiting ack, disconnecting"),
-    {stop, disconnected};
+    {stop, {shutdown, disconnected}};
 await_ack(info, Msg, State) ->
     handle_common(Msg, State).
 
