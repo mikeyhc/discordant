@@ -57,7 +57,6 @@ terminate({shutdown, reconnect}, _State, Data) ->
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
 terminate({shutdown, disconnected}, _State, Data) ->
-    disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
 terminate(Status, State, Data) ->
