@@ -51,8 +51,10 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
-terminate({shutdown, reconnect}, _State, Data) ->
+terminate({shutdown, reconnect}, State, Data) ->
     ?LOG_INFO("reconnect requested"),
+    ?LOG_ERROR("state: ~p~n", [State]),
+    ?LOG_ERROR("data: ~p~n", [Data]),
     disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
@@ -169,6 +171,8 @@ handle_ws_message(Msg=#{<<"op">> := Op, <<"d">> := Data}, S0) ->
 
 update_session_id(null, S0) -> S0;
 update_session_id(Msg, S0) ->
+    % TODO compare session ids
+    % TODO ensure we only use a single session ID
     case maps:get(<<"session_id">>, Msg, undefined) of
         undefined -> S0;
         null -> S0;
@@ -187,8 +191,6 @@ handle_ws_message_(0, #{<<"t">> := <<"MESSAGE_REACTION_ADD">>,
     end,
     S0;
 handle_ws_message_(0, #{<<"d">> := Msg}, S0) ->
-    % TODO compare session ids
-    % TODO ensure we only use a single session ID
     S1 = if S0#state.user_id =:= undefined ->
                 case maps:get(<<"user">>, Msg, undefined) of
                     undefined -> S0;
