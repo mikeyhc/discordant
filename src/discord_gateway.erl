@@ -51,10 +51,8 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
-terminate({shutdown, reconnect}, State, Data) ->
+terminate({shutdown, reconnect}, _State, Data) ->
     ?LOG_INFO("reconnect requested"),
-    ?LOG_ERROR("state: ~p~n", [State]),
-    ?LOG_ERROR("data: ~p~n", [Data]),
     disconnect(Data#state.connection, 1001, <<"reconnect">>),
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
