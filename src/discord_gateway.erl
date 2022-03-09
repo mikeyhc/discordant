@@ -51,11 +51,6 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
-terminate({shutdown, reconnect}, _State, Data) ->
-    ?LOG_INFO("reconnect requested"),
-    disconnect(Data#state.connection, 1001, <<"reconnect">>),
-    ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
 terminate({shutdown, disconnected}, _State, Data) ->
     ?LOG_INFO("removing heartbeat"),
     discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
@@ -126,7 +121,10 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
     ?LOG_DEBUG("message received: ~p", [Json]),
     ok = file:write(Log, [Msg, "\n"]),
     case Json of
-        #{<<"op">> := 7} -> {stop, {shutdown, reconnect}, S};
+        #{<<"op">> := 7} ->
+            ?LOG_INFO("reconnect requested"),
+            disconnect(S#state.connection, 1001, <<"reconnect">>),
+            {stop, normal, S};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
 connected(info, Msg, State) ->
