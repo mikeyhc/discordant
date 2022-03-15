@@ -90,7 +90,7 @@ await_hello(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
                           }),
             {next_state, await_dispatch, handle_ws_message(Json, S)};
         true ->
-            {stop, msg_before_hello, S}
+            {stop, msg_before_hello}
     end;
 await_hello(_, _, State) ->
     {keep_state, State, [postpone]}.
@@ -125,7 +125,7 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
         #{<<"op">> := 7} ->
             ?LOG_INFO("reconnect requested"),
             disconnect(S#state.connection, 1001, <<"reconnect">>),
-            {stop, normal, S};
+            {stop, normal};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
 connected(info, Msg, State) ->
@@ -245,10 +245,10 @@ connect_(Next, State) ->
                          connection=Connection,
                          log=Log}};
         {gun_response, ConnPid, _StreamRef, _Fin, _Status, _Headers} ->
-            {stop, ws_upgrade_failed, State};
+            {stop, ws_upgrade_failed};
         {gun_error, ConnPid, _StreamRef, Reason} ->
             ?LOG_ERROR("gun error: ~p", [Reason]),
-            {stop, ws_upgrade_failed, State}
+            {stop, ws_upgrade_failed}
     after 2000 -> {stop, timeout}
     end.
 
