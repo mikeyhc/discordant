@@ -51,12 +51,13 @@ init([]) ->
 callback_mode() ->
     state_functions.
 
+terminate(normal, _State, Data) ->
+    cleanup(Data);
 terminate({shutdown, disconnected}, _State, Data) ->
-    ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(Data#state.heartbeat);
+    cleanup(Data);
 terminate(Status, State, Data) ->
     ?LOG_INFO("abnormal termination ~p:~p:~p", [Status, State, Data]),
-    ok.
+    cleanup(Data).
 
 %% state callbacks
 
@@ -261,4 +262,9 @@ handle_mentions(Msg=#{<<"mentions">> := Mentions}, #state{user_id=UID}) ->
        true -> ok
     end;
 handle_mentions(_Msg, _State) ->
+    ok.
+
+cleanup(Data) ->
+    ?LOG_INFO("removing heartbeat"),
+    discord_heartbeat:remove_heartbeat(Data#state.heartbeat),
     ok.
