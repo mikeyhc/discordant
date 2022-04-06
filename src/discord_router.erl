@@ -37,6 +37,7 @@ route_raw(Pid, Msg) ->
 %% gen_server callbacks
 
 init([]) ->
+    ?LOG_ERROR("starting the router"),
     {ok, #state{}}.
 
 % TODO cache these values
