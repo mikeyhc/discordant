@@ -55,6 +55,9 @@ terminate(normal, _State, Data) ->
     cleanup(Data);
 terminate({shutdown, disconnected}, _State, Data) ->
     cleanup(Data);
+terminate({shutdown, Error}, State, Data) ->
+    ?LOG_INFO("abnormal termination ~p:~p:~p", [Error, State, Data]),
+    cleanup(Data);
 terminate(Status, State, Data) ->
     ?LOG_INFO("abnormal termination ~p:~p:~p", [Status, State, Data]),
     cleanup(Data).
@@ -245,11 +248,11 @@ connect_(Next, State) ->
                          connection=Connection,
                          log=Log}};
         {gun_response, ConnPid, _StreamRef, _Fin, _Status, _Headers} ->
-            {stop, ws_upgrade_failed};
+            {stop, {shutdown, ws_upgrade_failed}};
         {gun_error, ConnPid, _StreamRef, Reason} ->
             ?LOG_ERROR("gun error: ~p", [Reason]),
             {stop, ws_upgrade_failed}
-    after 2000 -> {stop, timeout}
+    after 2000 -> {stop, {shutdown, timeout}}
     end.
 
 handle_mentions(#{<<"author">> := #{<<"id">> := UID}}, #state{user_id=UID}) ->
