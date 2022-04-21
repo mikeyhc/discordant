@@ -53,6 +53,10 @@ callback_mode() ->
 
 terminate(normal, _State, Data) ->
     cleanup(Data);
+terminate(reconnect, State, Data) ->
+    ?LOG_INFO("reconnect requested"),
+    disconnect(State#state.connection, 1001, <<"reconnect">>),
+    cleanup(Data);
 terminate({shutdown, disconnected}, _State, Data) ->
     cleanup(Data);
 terminate({shutdown, Error}, State, Data) ->
@@ -125,10 +129,7 @@ connected(info, {gun_ws, ConnPid, _StreamRef, {text, Msg}},
     ?LOG_DEBUG("message received: ~p", [Json]),
     ok = file:write(Log, [Msg, "\n"]),
     case Json of
-        #{<<"op">> := 7} ->
-            ?LOG_INFO("reconnect requested"),
-            disconnect(S#state.connection, 1001, <<"reconnect">>),
-            {stop, normal};
+        #{<<"op">> := 7} -> {stop, reconnect};
         _ -> {keep_state, handle_ws_message(Json, S)}
     end;
 connected(info, Msg, State) ->
