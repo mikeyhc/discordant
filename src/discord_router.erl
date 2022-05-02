@@ -48,6 +48,8 @@ handle_call({set_hooks, Hooks}, _From, State) ->
 
 handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#state{msg=Routes}) ->
     case binary:split(Content, <<" ">>, [global, trim_all]) of
+        [_, <<"help">>|_] ->
+            handle_response({reply, build_help(Routes), []}, Msg);
         [_, Cmd|Rest] ->
             ?LOG_INFO("looking up ~p", [Cmd]),
             case maps:get(Cmd, Routes, undefined) of
@@ -81,3 +83,18 @@ handle_response({reply, Reply, _Args}, Msg) ->
     #{<<"channel_id">> := ChannelId} = Msg,
     discord_api:send_message(ApiPid, ChannelId, Reply);
 handle_response(noreply, _Msg) -> ok.
+
+build_help(Routes) ->
+    lists:foldl(fun build_help/2, <<"help:">>, maps:to_list(Routes)).
+
+build_help({Cmd, Map}, Acc) ->
+    #{args := Args, help := Help} = Map,
+    FullCmd = arg_join([Cmd|lists:map(fun list_to_binary/1, Args)], <<" ">>),
+    BinHelp = list_to_binary(Help),
+    Line = <<FullCmd/binary, " - ", BinHelp/binary>>,
+    <<Acc/binary, "\n", Line/binary>>.
+
+arg_join([H|T], Delim) ->
+    lists:foldl(fun(X, Acc) ->
+                        <<Acc/binary, Delim/binary, "{", X/binary, "}">>
+                end, H, T).
