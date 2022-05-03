@@ -9,7 +9,7 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
 
--record(state, {msg=#{} :: maps:map(binary(), mfa()),
+-record(state, {msg=#{} :: maps:map(atom(), mfa() | string() | [string()]),
                 react=[] :: [mfa()],
                 hooks=#{} :: maps:map(binary(), mfa())
                }).
@@ -53,7 +53,8 @@ handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#state{msg=Routes}) ->
         [_, Cmd|Rest] ->
             ?LOG_INFO("looking up ~p", [Cmd]),
             case maps:get(Cmd, Routes, undefined) of
-                undefined -> ok;
+                undefined ->
+                    handle_response({reply, <<"no such command">>, []}, Msg);
                 #{call := {M, F, A}, args := Args} ->
                     if length(Rest) < length(Args) ->
                            Response = {reply, <<"not enough arguments">>, []},
