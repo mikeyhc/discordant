@@ -54,9 +54,15 @@ handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#state{msg=Routes}) ->
             ?LOG_INFO("looking up ~p", [Cmd]),
             case maps:get(Cmd, Routes, undefined) of
                 undefined -> ok;
-                #{call := {M, F, A}} ->
-                    ApiPid = discordant_sup:get_api_server(),
-                    handle_response(apply(M, F, A ++ [Rest, ApiPid, Msg]), Msg)
+                #{call := {M, F, A}, args := Args} ->
+                    if length(Rest) < length(Args) ->
+                           Response = {reply, <<"not enough arguments">>, []},
+                           handle_response(Response, Msg);
+                       true ->
+                           ApiPid = discordant_sup:get_api_server(),
+                           Response = apply(M, F, A ++ [Rest, ApiPid, Msg]),
+                           handle_response(Response, Msg)
+                    end
             end
     end,
     {noreply, State};
