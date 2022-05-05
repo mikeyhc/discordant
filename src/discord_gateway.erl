@@ -53,9 +53,9 @@ callback_mode() ->
 
 terminate(normal, _State, Data) ->
     cleanup(Data);
-terminate(reconnect, State, Data) ->
+terminate(reconnect, _State, Data) ->
     ?LOG_INFO("reconnect requested"),
-    disconnect(State#state.connection, 1001, <<"reconnect">>),
+    disconnect(Data#state.connection, 1001, <<"reconnect">>),
     cleanup(Data);
 terminate({shutdown, disconnected}, _State, Data) ->
     cleanup(Data);
