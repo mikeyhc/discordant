@@ -270,5 +270,6 @@ handle_mentions(_Msg, _State) ->
 
 cleanup(Data) ->
     ?LOG_INFO("removing heartbeat"),
-    discord_heartbeat:remove_heartbeat(Data#state.heartbeat),
-    ok.
+    if Data#state.heartbeat =:= undefined -> ok;
+       true -> discord_heartbeat:remove_heartbeat(Data#state.heartbeat)
+    end.
