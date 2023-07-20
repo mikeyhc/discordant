@@ -206,14 +206,7 @@ handle_ws_message_(0, #{<<"d">> := Msg}, S0) ->
     S1;
 handle_ws_message_(10, #{<<"d">> := #{<<"heartbeat_interval">> := IV}},
                    State) ->
-    if State#state.heartbeat =:= undefined -> ok;
-       true ->
-           ?LOG_INFO("removing previous heartbeat"),
-           discord_heartbeat:remove_heartbeat(State#state.heartbeat)
-    end,
-    ?LOG_INFO("installing heartbeat on interval ~p", [IV]),
-    Ref = discord_heartbeat:create_heartbeat(IV, self()),
-    State#state{heartbeat=Ref};
+    State#state{heartbeat=install_heartbeat(State, IV)};
 handle_ws_message_(11, _Msg, State) ->
     ?LOG_INFO("received heartbeat ack"),
     State.
@@ -273,3 +266,12 @@ cleanup(Data) ->
     if Data#state.heartbeat =:= undefined -> ok;
        true -> discord_heartbeat:remove_heartbeat(Data#state.heartbeat)
     end.
+
+install_heartbeat(State, IV) ->
+    if State#state.heartbeat =:= undefined -> ok;
+       true ->
+           ?LOG_INFO("removing previous heartbeat"),
+           discord_heartbeat:remove_heartbeat(State#state.heartbeat)
+    end,
+    ?LOG_INFO("installing heartbeat on interval ~p", [IV]),
+    discord_heartbeat:create_heartbeat(IV, self()).

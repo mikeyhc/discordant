@@ -38,12 +38,15 @@ route_raw(Pid, Msg) ->
 
 init([]) ->
     ?LOG_ERROR("starting the router"),
+    % TODO use cached values
     {ok, #state{}}.
 
-% TODO cache these values
 handle_call({set_routes, Msg, React}, _From, State) ->
+    discordant_config:set_value(msg_routes, Msg),
+    discordant_config:set_value(react_routes, Msg),
     {reply, ok, State#state{msg=Msg, react=React}};
 handle_call({set_hooks, Hooks}, _From, State) ->
+    discordant_config:set_value(hooks, Hooks),
     {reply, ok, State#state{hooks=Hooks}}.
 
 handle_cast({msg, Msg=#{<<"content">> := Content}}, State=#state{msg=Routes}) ->
